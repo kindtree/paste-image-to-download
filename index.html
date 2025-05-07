@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Free Image Paste and Download Tool - A privacy-friendly Clipboard Image Downloader that works offline">
+    <title>Paste & Download - Image Tool</title>
+    
+    <!-- TailwindCSS via CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Alpine.js via CDN -->
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    
+    <!-- JSZip via CDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    
+    <style>
+        .dropzone {
+            border: 2px dashed #cbd5e0;
+            transition: all 0.3s ease;
+        }
+        .dropzone.active {
+            border-color: #4299e1;
+            background-color: #ebf8ff;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen" x-data="imageApp()">
+    <div class="container mx-auto px-4 py-8">
+        <header class="text-center mb-8">
+            <h1 class="text-3xl font-bold text-gray-800">Paste & Download Image Tool</h1>
+            <p class="text-gray-600 mt-2">Paste, preview, and download images directly in your browser</p>
+        </header>
+        
+        <main>
+            <!-- Input Area -->
+            <div 
+                class="dropzone bg-white p-8 rounded-lg shadow-md mb-8" 
+                :class="{ 'active': isDragging }"
+                @dragover.prevent="isDragging = true"
+                @dragleave="isDragging = false"
+                @drop.prevent="handleDrop($event); isDragging = false"
+                @click="$refs.fileInput.click()"
+                @paste.window="handlePaste"
+            >
+                <div class="text-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 mx-auto text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                    <h2 class="text-xl font-semibold mt-4">Paste image or drop files here</h2>
+                    <p class="text-gray-500 mt-2">
+                        Press <span class="font-mono bg-gray-200 px-1 rounded">Ctrl + V</span> to paste from clipboard,
+                        or click to browse
+                    </p>
+                    <input 
+                        type="file" 
+                        x-ref="fileInput"
+                        @change="handleFileSelect" 
+                        class="hidden" 
+                        accept="image/*" 
+                        multiple
+                    >
+                </div>
+            </div>
+            
+            <!-- Output/Preview Area -->
+            <div x-show="images.length > 0" class="mb-8">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-xl font-semibold">Images (<span x-text="images.length"></span>)</h3>
+                    <div class="flex gap-2">
+                        <button 
+                            @click="downloadAllAsZip"
+                            class="bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700"
+                            x-show="images.length > 1"
+                        >
+                            Download All as ZIP
+                        </button>
+                        <button 
+                            @click="clearImages"
+                            class="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700"
+                        >
+                            Clear All
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Format Selection -->
+                <div class="bg-white p-4 rounded-lg shadow mb-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Download Format:</label>
+                    <div class="flex gap-4">
+                        <label class="inline-flex items-center">
+                            <input type="radio" x-model="downloadFormat" value="png" class="form-radio">
+                            <span class="ml-2">PNG</span>
+                        </label>
+                        <label class="inline-flex items-center">
+                            <input type="radio" x-model="downloadFormat" value="jpeg" class="form-radio">
+                            <span class="ml-2">JPEG</span>
+                        </label>
+                        <label class="inline-flex items-center">
+                            <input type="radio" x-model="downloadFormat" value="webp" class="form-radio">
+                            <span class="ml-2">WebP</span>
+                        </label>
+                    </div>
+                </div>
+                
+                <!-- Image Grid -->
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <template x-for="(image, index) in images" :key="index">
+                        <div class="bg-white p-4 rounded-lg shadow">
+                            <div class="relative aspect-video mb-3">
+                                <img :src="image.src" class="w-full h-full object-contain rounded" />
+                            </div>
+                            <div class="flex justify-between items-center">
+                                <span class="text-sm text-gray-500" x-text="formatFileSize(image.size)"></span>
+                                <button 
+                                    @click="downloadSingleImage(image, index)"
+                                    class="bg-blue-600 text-white px-3 py-1 rounded text-sm hover:bg-blue-700"
+                                >
+                                    Download
+                                </button>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+            </div>
+        </main>
+        
+        <footer class="text-center text-gray-500 text-sm mt-12">
+            <p>Free and Open-Source Tool - No data is sent to any server</p>
+            <p class="mt-1">Use <span class="font-mono bg-gray-200 px-1 rounded">Ctrl + V</span> to paste images directly</p>
+            <p class="mt-2">
+                <a href="https://github.com/your-username/paste-to-download" class="text-blue-600 hover:underline" target="_blank">
+                    View on GitHub
+                </a>
+            </p>
+        </footer>
+    </div>
+    
+    <script>
+        function imageApp() {
+            return {
+                images: [],
+                isDragging: false,
+                downloadFormat: 'png', // Default format
+                
+                // Handle pasting from clipboard
+                handlePaste(event) {
+                    const items = (event.clipboardData || event.originalEvent.clipboardData).items;
+                    
+                    for (const item of items) {
+                        if (item.type.indexOf('image') === 0) {
+                            const blob = item.getAsFile();
+                            this.addImageFromFile(blob);
+                        }
+                    }
+                },
+                
+                // Handle file selection from input
+                handleFileSelect(event) {
+                    const files = event.target.files;
+                    for (const file of files) {
+                        if (file.type.startsWith('image/')) {
+                            this.addImageFromFile(file);
+                        }
+                    }
+                    // Reset file input
+                    event.target.value = '';
+                },
+                
+                // Handle drag and drop
+                handleDrop(event) {
+                    const files = event.dataTransfer.files;
+                    for (const file of files) {
+                        if (file.type.startsWith('image/')) {
+                            this.addImageFromFile(file);
+                        }
+                    }
+                },
+                
+                // Add image to the collection
+                addImageFromFile(file) {
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        this.images.push({
+                            src: e.target.result,
+                            file: file,
+                            name: file.name || `image_${Date.now()}.png`,
+                            size: file.size,
+                            type: file.type
+                        });
+                    };
+                    reader.readAsDataURL(file);
+                },
+                
+                // Convert and download a single image
+                downloadSingleImage(image, index) {
+                    const canvas = document.createElement('canvas');
+                    const ctx = canvas.getContext('2d');
+                    const img = new Image();
+                    
+                    img.onload = () => {
+                        canvas.width = img.width;
+                        canvas.height = img.height;
+                        ctx.drawImage(img, 0, 0);
+                        
+                        // Convert to the selected format
+                        const fileName = this.generateFileName(image, index);
+                        
+                        canvas.toBlob((blob) => {
+                            const url = URL.createObjectURL(blob);
+                            const a = document.createElement('a');
+                            a.href = url;
+                            a.download = fileName;
+                            a.click();
+                            
+                            // Clean up
+                            setTimeout(() => URL.revokeObjectURL(url), 100);
+                        }, `image/${this.downloadFormat}`);
+                    };
+                    
+                    img.src = image.src;
+                },
+                
+                // Generate filename for download
+                generateFileName(image, index) {
+                    // Get original name without extension
+                    let baseName = 'image';
+                    if (image.name) {
+                        const nameParts = image.name.split('.');
+                        if (nameParts.length > 1) {
+                            nameParts.pop(); // Remove extension
+                        }
+                        baseName = nameParts.join('.');
+                    } else {
+                        baseName = `image_${index + 1}`;
+                    }
+                    
+                    return `${baseName}.${this.downloadFormat}`;
+                },
+                
+                // Format file size for display
+                formatFileSize(bytes) {
+                    if (bytes < 1024) return bytes + ' bytes';
+                    else if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
+                    else return (bytes / 1048576).toFixed(1) + ' MB';
+                },
+                
+                // Clear all images
+                clearImages() {
+                    this.images = [];
+                },
+                
+                // Download all images as ZIP
+                downloadAllAsZip() {
+                    const zip = new JSZip();
+                    let imageFolder = zip.folder("images");
+                    
+                    // Counter to track processed images
+                    let processedCount = 0;
+                    
+                    this.images.forEach((image, index) => {
+                        const canvas = document.createElement('canvas');
+                        const ctx = canvas.getContext('2d');
+                        const img = new Image();
+                        
+                        img.onload = () => {
+                            canvas.width = img.width;
+                            canvas.height = img.height;
+                            ctx.drawImage(img, 0, 0);
+                            
+                            canvas.toBlob((blob) => {
+                                const reader = new FileReader();
+                                reader.onload = (e) => {
+                                    const fileName = this.generateFileName(image, index);
+                                    imageFolder.file(fileName, e.target.result, {binary: true});
+                                    
+                                    processedCount++;
+                                    if (processedCount === this.images.length) {
+                                        // All images processed, generate the ZIP
+                                        zip.generateAsync({type: "blob"}).then((content) => {
+                                            const url = URL.createObjectURL(content);
+                                            const a = document.createElement('a');
+                                            a.href = url;
+                                            a.download = `images_${new Date().toISOString().slice(0,10)}.zip`;
+                                            a.click();
+                                            
+                                            // Clean up
+                                            setTimeout(() => URL.revokeObjectURL(url), 100);
+                                        });
+                                    }
+                                };
+                                reader.readAsArrayBuffer(blob);
+                            }, `image/${this.downloadFormat}`);
+                        };
+                        
+                        img.src = image.src;
+                    });
+                }
+            };
+        }
+    </script>
+</body>
+</html> 
