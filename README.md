@@ -86,7 +86,7 @@ Potential future enhancements:
 
 ---
 
-Made with ❤️ for the open-source community – visit [paste-to-download.com](https://paste-to-download.com) to use the tool online.
+Made with ❤️ for the open-source community – visit [paste-image-to-download](https://paste-to-download.com) to use the tool online.
 
 ## Development Guide
 
