@@ -5,7 +5,7 @@ This tool is **privacy-friendly**, works entirely in the browser, and does **not
 
 > 🌐 **Live Demo**: [https://paste-to-download.com](https://paste-to-download.com)
 
-![Paste-to-Download Tool Screenshot](https://via.placeholder.com/800x450.png?text=Paste-to-Download+Screenshot)
+![Paste-to-Download Tool Screenshot](https://raw.githubusercontent.com/kindtree/paste-to-download/refs/heads/main/Screenshot.png)
 
 ## ✨ Description
 
